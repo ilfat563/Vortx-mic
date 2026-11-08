@@ -1,0 +1,52 @@
+name: Build Vortx APK
+
+on:
+  workflow_dispatch:
+  push:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Проверить архив проекта
+        id: chk
+        run: |
+          if [ -f vortx_music.zip ]; then echo "ok=true" >> "$GITHUB_OUTPUT"; else echo "Архив vortx_music.zip не найден — загрузите его в репозиторий."; fi
+
+      - name: Распаковать проект
+        if: steps.chk.outputs.ok == 'true'
+        run: unzip -q vortx_music.zip
+
+      - uses: actions/setup-java@v4
+        if: steps.chk.outputs.ok == 'true'
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        if: steps.chk.outputs.ok == 'true'
+        with:
+          channel: stable
+
+      - name: Настройка Android и зависимостей
+        if: steps.chk.outputs.ok == 'true'
+        working-directory: vortx
+        run: bash setup.sh
+
+      - name: Сборка APK
+        if: steps.chk.outputs.ok == 'true'
+        working-directory: vortx
+        run: flutter build apk --release
+
+      - name: Выпустить APK для скачивания
+        if: steps.chk.outputs.ok == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: apk-${{ github.run_number }}
+          name: Vortx Music APK ${{ github.run_number }}
+          files: vortx/build/app/outputs/flutter-apk/app-release.apk
